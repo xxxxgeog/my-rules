@@ -24,11 +24,10 @@ jobs:
 
       - name: Convert JSON to SRS
         run: |
-          # 自动寻找仓库里的所有 json 并转换为同名 srs
           for file in *.json; do
             if [ -f "$file" ]; then
               filename="${file%.*}"
-              ./mihomo -f /dev/null tool ruleset compile "$file" "${filename}.srs"
+              ./mihomo rule-set compile "$file" "${filename}.srs"
               echo "Compiled $file to ${filename}.srs"
             fi
           done
