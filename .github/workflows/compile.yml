@@ -1,0 +1,42 @@
+name: Compile Rule Sets
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**.json' # 只要有 json 文件修改就会触发
+  workflow_dispatch: # 允许手动点击按钮触发
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download Mihomo Tool
+        run: |
+          wget https://github.com/MetaCubeX/mihomo/releases/download/v1.18.9/mihomo-linux-amd64-v1.18.9.gz
+          gunzip mihomo-linux-amd64-v1.18.9.gz
+          mv mihomo-linux-amd64-v1.18.9 mihomo
+          chmod +x mihomo
+
+      - name: Convert JSON to SRS
+        run: |
+          # 自动寻找仓库里的所有 json 并转换为同名 srs
+          for file in *.json; do
+            if [ -f "$file" ]; then
+              filename="${file%.*}"
+              ./mihomo rule-set compile "$file" "${filename}.srs"
+              echo "Compiled $file to ${filename}.srs"
+            fi
+          done
+
+      - name: Push SRS back to Repo
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add *.srs
+          git commit -m "Automated compile: update srs rule sets" || exit 0
+          git push
