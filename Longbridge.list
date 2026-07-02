@@ -1,0 +1,7 @@
+# ==========================================================
+# 1. 域名后缀匹配 (HOST-SUFFIX)  --- 长桥证券 (Longbridge) ---
+# ==========================================================
+HOST-SUFFIX, lbkrs.com, PROXY
+HOST-SUFFIX, longbridge.hk, PROXY
+HOST-SUFFIX, longbridgeapp.com, PROXY
+HOST-SUFFIX, longbridge-ny.com, PROXY
