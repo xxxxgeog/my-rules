@@ -1,41 +1,53 @@
-name: Compile Rule Sets
+name: Compile sing-box SRS
 
+# 触发条件：当 main 分支有代码推送，或者手动点击运行
 on:
   push:
     branches:
       - main
     paths:
-      - '**.json' # 只要有 json 文件修改就会触发
-  workflow_dispatch: # 允许手动点击按钮触发
+      - '**.json' # 只有当 json 文件发生变动时才触发，避免浪费资源
+  workflow_dispatch: # 允许你在网页上点按钮手动触发
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+    - name: Checkout Code
+      uses: actions/checkout@v4
 
-      - name: Download Mihomo Tool
-        run: |
-          wget https://github.com/MetaCubeX/mihomo/releases/download/v1.18.9/mihomo-linux-amd64-v1.18.9.gz
-          gunzip mihomo-linux-amd64-v1.18.9.gz
-          mv mihomo-linux-amd64-v1.18.9 mihomo
-          chmod +x mihomo
+    - name: Install sing-box
+      run: |
+        # 自动获取 sing-box 最新稳定版并安装
+        TAG=$(curl -s https://api.github.com/repos/SagerNet/sing-box/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        VERSION=${TAG#v}
+        echo "Latest sing-box version is $VERSION"
+        curl -Lo sing-box.tar.gz "https://github.com/SagerNet/sing-box/releases/download/${TAG}/sing-box-${VERSION}-linux-amd64.tar.gz"
+        tar -xzf sing-box.tar.gz
+        sudo mv sing-box-*/sing-box /usr/local/bin/
+        rm -rf sing-box*
 
-      - name: Convert JSON to SRS
-        run: |
-          for file in *.json; do
-            if [ -f "$file" ]; then
-              filename="${file%.*}"
-              ./mihomo tool ruleset compile "$file" "${filename}.srs"
-              echo "Compiled $file to ${filename}.srs"
-            fi
-          done
+    - name: Compile JSON to SRS
+      run: |
+        # 遍历仓库里所有的 .json 文件（排除本就是 GitHub 配置的文件）并编译
+        # 如果你有特定的 json 文件，也可以把下面的循环改成固定的命令
+        find . -maxdepth 1 -name "*.json" | while read -r file; do
+          filename=$(basename "$file" .json)
+          echo "Compiling $file to ${filename}.srs ..."
+          sing-box rule-set compile "$file" -o "${filename}.srs"
+        done
 
-      - name: Push SRS back to Repo
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add *.srs
-          git commit -m "Automated compile: update srs rule sets" || exit 0
+    - name: Push Compiled SRS to Repo
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # 检查是否有新生成的 srs 文件变动
+        git add *.srs
+        if git diff --staged --quiet; then
+          echo "No changes in compiled SRS files."
+        else
+          git commit -m "Auto-compile rule-set to SRS [skip ci]"
           git push
+        fi
